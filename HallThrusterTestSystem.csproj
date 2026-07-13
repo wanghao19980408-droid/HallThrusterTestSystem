@@ -53,10 +53,16 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="DataConvertLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\x64\Debug\DataConvertLib.dll</HintPath>
+    </Reference>
     <Reference Include="MiniExcel, Version=1.28.5.0, Culture=neutral, PublicKeyToken=e7310002a53eac39, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>bin\x64\Debug\MiniExcel.dll</HintPath>
     </Reference>
+    <Reference Include="NationalInstruments.Common, Version=19.1.40.49152, Culture=neutral, PublicKeyToken=dc6ad606294fc298, processorArchitecture=MSIL" />
+    <Reference Include="NationalInstruments.DAQmx, Version=26.3.40.49158, Culture=neutral, PublicKeyToken=dc6ad606294fc298, processorArchitecture=x86" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -78,6 +84,10 @@
     </Compile>
     <Compile Include="Helper\IniConfigHelper.cs" />
     <Compile Include="Helper\ReadExcel.cs" />
+    <Compile Include="NIDAQLibrary\AnalogInputReader.cs" />
+    <Compile Include="NIDAQLibrary\AnalogOutputRegulator.cs" />
+    <Compile Include="NIDAQLibrary\DigitalControl.cs" />
+    <Compile Include="NIDAQLibrary\HardwareManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -101,12 +111,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\NIDAQLibrary\NIDAQLibrary.csproj">
-      <Project>{15a3c2d3-a8d5-4797-bf5e-868fb1a5800b}</Project>
-      <Name>NIDAQLibrary</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
