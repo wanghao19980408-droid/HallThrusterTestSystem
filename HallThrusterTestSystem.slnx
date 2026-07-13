@@ -1,0 +1,12 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="../NIDAQLibrary/NIDAQLibrary.csproj" Id="15a3c2d3-a8d5-4797-bf5e-868fb1a5800b">
+    <Platform Solution="Release|x64" Project="x64" />
+  </Project>
+  <Project Path="HallThrusterTestSystem.csproj" Id="0c5216ce-b88d-493c-acd1-b0da584fdff3">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+</Solution>
