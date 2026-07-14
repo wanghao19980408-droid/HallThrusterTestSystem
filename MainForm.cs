@@ -10,24 +10,33 @@ namespace HallThrusterTestSystem
     public partial class MainForm : Form
     {
         private ConcurrentDictionary<string, double> latestDataPool = new ConcurrentDictionary<string, double>();
-
-
+        private Dictionary<string, Label> labelCache = new Dictionary<string, Label>();
+        private List<AnalogInputReader> deviceReaders;
+        private DigitalControl digitalControl;
         private Timer uiRefreshTimer = new Timer();
         private ReadExcel readExcel;
-        private DigitalControl digitalControl;
-        private List<AnalogInputReader> deviceReaders;
         private string ChannelConfigPath = "ChannelConfig.xlsx";
 
         public MainForm()
         {
             InitializeComponent();
+            this.Load += MainForm_Load;
+            this.FormClosing += MainForm_FormClosing;
             InitializeHardwareConfig();
-
-            uiRefreshTimer.Interval = 100;
-            uiRefreshTimer.Tick += (s, e) => UpdateUI();
-            uiRefreshTimer.Start();
         }
 
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            BuildLabelCache(this);
+            uiRefreshTimer.Interval = 100;
+            uiRefreshTimer.Tick += (s, r) => UpdateUI();
+            uiRefreshTimer.Start();
+        }
         private void InitializeHardwareConfig()
         {
             readExcel = new ReadExcel();
@@ -66,9 +75,9 @@ namespace HallThrusterTestSystem
                         AITerminalConfiguration atc = typeStr.Contains("单端") ?
                             AITerminalConfiguration.Rse : AITerminalConfiguration.Differential;
 
-                        if (row.ContainsKey("rate") && row["rate"] != null)
+                        if (row.ContainsKey("Rate") && row["Rate"] != null)
                         {
-                            if (double.TryParse(row["rate"].ToString(), out double currentRate))
+                            if (double.TryParse(row["Rate"].ToString(), out double currentRate))
                             {
                                 maxDeviceRate = Math.Max(maxDeviceRate, currentRate);
                             }
@@ -127,7 +136,6 @@ namespace HallThrusterTestSystem
                 }
             }
         }
-
         private void Reader_DataAcquired(NationalInstruments.AnalogWaveform<double>[] multiChannelData)
         {
             foreach (var waveform in multiChannelData)
@@ -145,31 +153,32 @@ namespace HallThrusterTestSystem
         {
             foreach (var kvp in latestDataPool)
             {
-                Label lbl = FindLabelByTag(this, kvp.Key);
-                if (lbl != null)
+                if (labelCache.TryGetValue(kvp.Key, out Label lbl))
                 {
                     lbl.Text = kvp.Value.ToString("F3");
-
                 }
             }
         }
-
-        private Label FindLabelByTag(Control parent, string tagValue)
+        private void BuildLabelCache(Control parent)
         {
             foreach (Control c in parent.Controls)
             {
-                if (c is Label lbl && lbl.Tag != null && lbl.Tag.ToString() == tagValue)
+                if (c is Label lbl && lbl.Tag != null)
                 {
-                    return lbl;
+                    string tagValue = lbl.Tag.ToString();
+                    if (!string.IsNullOrWhiteSpace(tagValue))
+                    {
+                        labelCache[tagValue] = lbl;
+                    }
                 }
 
                 if (c.HasChildren)
                 {
-                    Label found = FindLabelByTag(c, tagValue);
-                    if (found != null) return found;
+                    BuildLabelCache(c);
                 }
             }
-            return null;
         }
+
+
     }
 }
