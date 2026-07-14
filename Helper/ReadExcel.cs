@@ -1,4 +1,5 @@
-﻿using MiniExcelLibs;
+﻿using DataConvertLib;
+using MiniExcelLibs;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,7 +13,7 @@ namespace HallThrusterTestSystem
     {
         public Dictionary<string, List<Dictionary<string, object>>> SheetData { get; } = new Dictionary<string, List<Dictionary<string, object>>>();
 
-        public void ReadDeviceExcel(string filePath)
+        public OperateResult<Dictionary<string, List<Dictionary<string, object>>>> ReadDeviceExcel(string filePath)
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException($"Excel文件不存在: {filePath}");
@@ -49,6 +50,7 @@ namespace HallThrusterTestSystem
                         Console.WriteLine($"读取工作表 '{sheetName}' 失败: {ex.Message}");
                     }
                 }
+                return OperateResult.CreateSuccessResult(SheetData);
             }
         }
 
