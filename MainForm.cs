@@ -1,24 +1,35 @@
-﻿using System;
+﻿using NationalInstruments.DAQmx;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using NationalInstruments.DAQmx;
 
 namespace HallThrusterTestSystem
 {
     public partial class MainForm : Form
     {
+        private ConcurrentDictionary<string, double> latestDataPool = new ConcurrentDictionary<string, double>();
+
+
+        private Timer uiRefreshTimer = new Timer();
         private ReadExcel readExcel;
         private DigitalControl digitalControl;
-
         private List<AnalogInputReader> deviceReaders;
-
         private string ChannelConfigPath = "ChannelConfig.xlsx";
 
         public MainForm()
         {
             InitializeComponent();
+            InitializeHardwareConfig();
 
+            uiRefreshTimer.Interval = 100;
+            uiRefreshTimer.Tick += (s, e) => UpdateUI();
+            uiRefreshTimer.Start();
+        }
+
+        private void InitializeHardwareConfig()
+        {
             readExcel = new ReadExcel();
             digitalControl = new DigitalControl();
             deviceReaders = new List<AnalogInputReader>();
@@ -41,7 +52,9 @@ namespace HallThrusterTestSystem
                 if (rows == null || rows.Count == 0) continue;
 
                 List<ChannelParam> currentDeviceChannels = new List<ChannelParam>();
-                double deviceRate = 1000.0;
+
+                double maxDeviceRate = 0.0;
+
                 foreach (var row in rows)
                 {
                     try
@@ -55,24 +68,26 @@ namespace HallThrusterTestSystem
 
                         if (row.ContainsKey("rate") && row["rate"] != null)
                         {
-                            double.TryParse(row["rate"].ToString(), out deviceRate);
+                            if (double.TryParse(row["rate"].ToString(), out double currentRate))
+                            {
+                                maxDeviceRate = Math.Max(maxDeviceRate, currentRate);
+                            }
                         }
 
                         double rawMin = row.ContainsKey("Min") ? Convert.ToDouble(row["Min"]) : 0;
                         double rawMax = row.ContainsKey("Max") ? Convert.ToDouble(row["Max"]) : 5.0;
-
                         double safeMin = Math.Min(rawMin, rawMax);
                         double safeMax = Math.Max(rawMin, rawMax);
 
-                        if (safeMin == safeMax) safeMax = safeMin + 1.0;
-
-                        currentDeviceChannels.Add(new ChannelParam
+                        var chParam = new ChannelParam
                         {
                             PhysicalName = $"{deviceName}/{channel}",
                             MinVolts = safeMin,
                             MaxVolts = safeMax,
-                            TerminalConfig = atc
-                        });
+                            TerminalConfig = atc,
+                        };
+
+                        currentDeviceChannels.Add(chParam);
                     }
                     catch (Exception ex)
                     {
@@ -87,15 +102,23 @@ namespace HallThrusterTestSystem
                     reader.DataAcquired += Reader_DataAcquired;
                     reader.HardwareError += (ex) =>
                     {
-                        this.BeginInvoke(new Action(() => {
-                            MessageBox.Show($"设备 [{deviceName}] 发生异常: {ex.Message}");
-                        }));
+                        this.BeginInvoke(new Action(() => MessageBox.Show($"设备 [{deviceName}] 发生异常: {ex.Message}")));
                     };
 
-                    var res = reader.StartContinuousReading(currentDeviceChannels, deviceRate, 100);
+
+                    if (maxDeviceRate <= 0) maxDeviceRate = 1000.0;
+
+                    double targetControlHz = 10.0;
+
+                    int dynamicSamples = (int)(maxDeviceRate / targetControlHz);
+
+                    if (dynamicSamples < 1) dynamicSamples = 1;
+
+                    var res = reader.StartContinuousReading(currentDeviceChannels, maxDeviceRate, dynamicSamples);
+
                     if (res.IsSuccess)
                     {
-                        deviceReaders.Add(reader); 
+                        deviceReaders.Add(reader);
                     }
                     else
                     {
@@ -107,24 +130,28 @@ namespace HallThrusterTestSystem
 
         private void Reader_DataAcquired(NationalInstruments.AnalogWaveform<double>[] multiChannelData)
         {
-            if (!this.IsHandleCreated) return;
-            this.BeginInvoke(new Action(() =>
+            foreach (var waveform in multiChannelData)
             {
-                for (int i = 0; i < multiChannelData.Length; i++)
+                if (waveform.Samples.Count == 0) continue;
+
+                string name = waveform.ChannelName;
+
+                double avg = waveform.Samples.Last().Value;
+                latestDataPool[name] = avg;
+
+            }
+        }
+        private void UpdateUI()
+        {
+            foreach (var kvp in latestDataPool)
+            {
+                Label lbl = FindLabelByTag(this, kvp.Key);
+                if (lbl != null)
                 {
-                    var waveform = multiChannelData[i];
+                    lbl.Text = kvp.Value.ToString("F3");
 
-                    if (waveform.Samples.Count == 0) continue;
-
-                    double averageValue = waveform.Samples.Average(s => s.Value);
-                    Label targetLabel = FindLabelByTag(this, waveform.ChannelName);
-
-                    if (targetLabel != null)
-                    {
-                        targetLabel.Text = averageValue.ToString("F3");
-                    }
                 }
-            }));
+            }
         }
 
         private Label FindLabelByTag(Control parent, string tagValue)
@@ -142,7 +169,7 @@ namespace HallThrusterTestSystem
                     if (found != null) return found;
                 }
             }
-            return null; 
+            return null;
         }
     }
 }

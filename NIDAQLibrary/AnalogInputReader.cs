@@ -29,7 +29,7 @@ namespace HallThrusterTestSystem
                 {
                     AiTask.AIChannels.CreateVoltageChannel(
                         ch.PhysicalName,
-                        ch.PhysicalName,
+                        "",
                         ch.TerminalConfig,
                         ch.MinVolts,
                         ch.MaxVolts,
